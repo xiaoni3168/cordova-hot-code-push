@@ -147,6 +147,13 @@ function broadcastEventFromNative(nativeMessage) {
  * May be used by developers to send commands to the plugin.
  */
 var chcp = {
+    /* modify by Ani */
+    token: '',
+    contentUrl: '',
+    identity: function(data) {
+        chcp.token = data.token;
+        chcp.contentUrl = data.contentUrl;
+    },
 
   /**
    * Set plugin options.
@@ -213,7 +220,8 @@ var chcp = {
       }
     };
 
-    exec(innerCallback, null, PLUGIN_NAME, pluginNativeMethod.FETCH_UPDATE, []);
+    // pass some variable
+    exec(innerCallback, null, PLUGIN_NAME, pluginNativeMethod.FETCH_UPDATE, [chcp.token, chcp.contentUrl]);
   },
 
   /**

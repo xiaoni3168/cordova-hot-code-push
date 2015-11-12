@@ -77,3 +77,7 @@ Since local development mode was moved to the separate plugin - that should fix 
 - iOS. Fixed Swift header duplicates issue which occur when you change your project name.
 - iOS. Fixed Swift header name generation: now based on project module name as it should be.
 - Now it works with Ionic framework. Although, some minor issues still remains.
+
+## original (2015-11-12)
+
+- Updated www/chcp.js file
