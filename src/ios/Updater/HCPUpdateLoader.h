@@ -13,7 +13,7 @@
  *
  *  Queue consists from 1 task, because we don't need to store 100 tasks for download request,
  *  we need only the last one.
- * 
+ *
  *  Class is a singleton.
  *
  *  @see HCPUpdateLoaderWorker
@@ -34,7 +34,7 @@
  *
  *  @return id of the created worker
  */
-- (NSString *)addUpdateTaskToQueueWithConfigUrl:(NSURL *)configUrl;
+- (NSString *)addUpdateTaskToQueueWithConfigUrl:(NSURL *)configUrl accessToken:(NSString *)token;
 
 /**
  *  Setup loader. Should be called on application startup before any real work is performed.

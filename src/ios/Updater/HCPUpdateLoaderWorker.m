@@ -25,6 +25,8 @@
     id<HCPConfigFileStorage> _manifestStorage;
     HCPApplicationConfig *_oldAppConfig;
     HCPContentManifest *_oldManifest;
+
+    NSString *_token;
 }
 
 @property (nonatomic, strong, readwrite) NSString *workerId;
@@ -35,7 +37,7 @@
 
 #pragma mark Public API
 
-- (instancetype)initWithConfigUrl:(NSURL *)configURL filesStructure:(id<HCPFilesStructure>)fileStructure {
+- (instancetype)initWithConfigUrl:(NSURL *)configURL filesStructure:(id<HCPFilesStructure>)fileStructure accessToken:(NSString *)token{
     self = [super init];
     if (self) {
         _configURL = configURL;
@@ -43,34 +45,35 @@
         _pluginFiles = fileStructure;
         _appConfigStorage = [[HCPApplicationConfigStorage alloc] initWithFileStructure:fileStructure];
         _manifestStorage = [[HCPContentManifestStorage alloc] initWithFileStructure:fileStructure];
+        _token = token;
     }
-    
+
     return self;
 }
 
 - (void)run {
     NSError *error = nil;
-    
+
     // initialize before the run
     if (![self loadLocalConfigs:&error]) {
         [self notifyWithError:error applicationConfig:nil];
         return;
     }
-    
+
     // download new application config
-    HCPApplicationConfig *newAppConfig = [HCPApplicationConfig downloadSyncFromURL:_configURL error:&error];
+    HCPApplicationConfig *newAppConfig = [HCPApplicationConfig downloadSyncFromURL:_configURL accessToken:_token error:&error];
     if (error) {
         [self notifyWithError:[NSError errorWithCode:kHCPFailedToDownloadApplicationConfigErrorCode descriptionFromError:error]
             applicationConfig:nil];
         return;
     }
-    
+
     // check if there is anything new on the server
     if ([newAppConfig.contentConfig.releaseVersion isEqualToString:_oldAppConfig.contentConfig.releaseVersion]) {
         [self notifyNothingToUpdate:newAppConfig];
         return;
     }
-    
+
     // check if current native version supports new content
     if (newAppConfig.contentConfig.minimumNativeVersion > [NSBundle applicationBuildVersion]) {
         [self notifyWithError:[NSError errorWithCode:kHCPApplicationBuildVersionTooLowErrorCode
@@ -78,7 +81,7 @@
             applicationConfig:newAppConfig];
         return;
     }
-    
+
     // download new content manifest
     NSURL *manifestFileURL = [newAppConfig.contentConfig.contentURL URLByAppendingPathComponent:_pluginFiles.manifestFileName];
     HCPContentManifest *newManifest = [HCPContentManifest downloadSyncFromURL:manifestFileURL error:&error];
@@ -88,19 +91,19 @@
             applicationConfig:newAppConfig];
         return;
     }
-    
+
     // find files that were updated
     NSArray *updatedFiles = [_oldManifest calculateDifference:newManifest].updateFileList;
     if (updatedFiles.count == 0) {
         [_manifestStorage store:newManifest inFolder:_pluginFiles.wwwFolder];
         [_appConfigStorage store:newAppConfig inFolder:_pluginFiles.wwwFolder];
         [self notifyNothingToUpdate:newAppConfig];
-        
+
         return;
     }
-    
+
     [self recreateDownloadFolder:_pluginFiles.downloadFolder];
-    
+
     // download files
     HCPFileDownloader *downloader = [[HCPFileDownloader alloc] init];
     BOOL isDataLoaded = [downloader downloadFilesSync:updatedFiles
@@ -114,14 +117,14 @@
             applicationConfig:newAppConfig];
         return;
     }
-    
+
     // store configs
     [_manifestStorage store:newManifest inFolder:_pluginFiles.downloadFolder];
     [_appConfigStorage store:newAppConfig inFolder:_pluginFiles.downloadFolder];
-    
+
     // move download folder to installation folder
     [self moveDownloadedContentToInstallationFolder];
-    
+
     // notify that we are done
     [self notifyUpdateDownloadSuccess:newAppConfig];
 }
@@ -143,14 +146,14 @@
                             description:@"Failed to load current application config"];
         return NO;
     }
-    
+
     _oldManifest = [_manifestStorage loadFromFolder:_pluginFiles.wwwFolder];
     if (_oldManifest == nil) {
         *error = [NSError errorWithCode:kHCPLocalVersionOfManifestNotFoundErrorCode
                             description:@"Failed to load current manifest file"];
         return NO;
     }
-    
+
     return YES;
 }
 
@@ -159,7 +162,7 @@
  */
 - (void)moveDownloadedContentToInstallationFolder {
     [self waitForInstallationToComplete];
-    
+
     NSFileManager *fileManager = [NSFileManager defaultManager];
     NSError *error = nil;
     [fileManager moveItemAtURL:_pluginFiles.downloadFolder toURL:_pluginFiles.installationFolder error:&error];
@@ -184,7 +187,7 @@
                                                  applicationConfig:config
                                                             taskId:self.workerId
                                                              error:error];
-    
+
     [[NSNotificationCenter defaultCenter] postNotification:notification];
 }
 
@@ -199,7 +202,7 @@
                                                  applicationConfig:config
                                                             taskId:self.workerId
                                                              error:error];
-    
+
     [[NSNotificationCenter defaultCenter] postNotification:notification];
 }
 
@@ -212,7 +215,7 @@
     NSNotification *notification = [HCPEvents notificationWithName:kHCPUpdateIsReadyForInstallationEvent
                                                  applicationConfig:config
                                                             taskId:self.workerId];
-    
+
     [[NSNotificationCenter defaultCenter] postNotification:notification];
 }
 
@@ -223,12 +226,12 @@
  */
 - (void)recreateDownloadFolder:(NSURL *)downloadFolder {
     NSFileManager *fileManager = [NSFileManager defaultManager];
-    
+
     NSError *error = nil;
     if ([fileManager fileExistsAtPath:downloadFolder.path]) {
         [fileManager removeItemAtURL:downloadFolder error:&error];
     }
-    
+
     [fileManager createDirectoryAtURL:downloadFolder withIntermediateDirectories:YES attributes:nil error:&error];
 }
 
@@ -239,7 +242,7 @@
  */
 - (NSString *)generateWorkerId {
     NSTimeInterval millis = [[NSDate date] timeIntervalSince1970];
-    
+
     return [NSString stringWithFormat:@"%f",millis];
 }
 

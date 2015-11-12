@@ -23,6 +23,7 @@ typedef void (^HCPJsonDownloadComplitionBlock)(NSError *error, id json);
  *  URL from which we will download JSON.
  */
 @property (nonatomic, strong, readonly) NSURL *url;
+@property (nonatomic, strong, readonly) NSString *token;
 
 /**
  *  Initialize object.
@@ -31,7 +32,7 @@ typedef void (^HCPJsonDownloadComplitionBlock)(NSError *error, id json);
  *
  *  @return instance of the object
  */
-- (instancetype)initWithUrl:(NSURL *)url;
+- (instancetype)initWithUrl:(NSURL *)url accessToken:(NSString *)token;
 
 /**
  *  Perform download and call the provided block when finished.

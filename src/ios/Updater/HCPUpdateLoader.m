@@ -25,7 +25,7 @@
     dispatch_once(&onceToken, ^{
         sharedInstance = [[self alloc] init];
     });
-    
+
     return sharedInstance;
 }
 
@@ -37,14 +37,14 @@
     _filesStructure = filesStructure;
 }
 
-- (NSString *)addUpdateTaskToQueueWithConfigUrl:(NSURL *)configUrl {
+- (NSString *)addUpdateTaskToQueueWithConfigUrl:(NSURL *)configUrl accessToken:(NSString *)token{
     id<HCPWorker> task = [[HCPUpdateLoaderWorker alloc] initWithConfigUrl:configUrl filesStructure:_filesStructure];
     if (_isExecuting) {
         _scheduledTask = task;
     } else {
         [self executeTask:task];
     }
-    
+
     return task.workerId;
 }
 

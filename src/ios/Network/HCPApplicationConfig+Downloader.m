@@ -13,22 +13,22 @@
     if (block == nil) {
         return;
     }
-    
+
     HCPJsonDownloader *jsonDownloader = [[HCPJsonDownloader alloc] initWithUrl:url];
     [jsonDownloader downloadWithComplitionBlock:^(NSError *error, id json) {
         HCPApplicationConfig *config = nil;
         if (error == nil) {
             config = [HCPApplicationConfig instanceFromJsonObject:json];
         }
-        
+
         block(error, config);
     }];
 }
 
-+ (HCPApplicationConfig *)downloadSyncFromURL:(NSURL *)url error:(NSError **)error {
++ (HCPApplicationConfig *)downloadSyncFromURL:(NSURL *)url accessToken:(NSString *)token error:(NSError **)error {
     HCPJsonDownloader *jsonDownloader = [[HCPJsonDownloader alloc] initWithUrl:url];
     id json = [jsonDownloader downloadSync:error];
-    
+
     return [HCPApplicationConfig instanceFromJsonObject:json];
 }
 

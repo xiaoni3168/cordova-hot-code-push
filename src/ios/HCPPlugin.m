@@ -145,12 +145,12 @@ static NSString *const DEFAULT_STARTING_PAGE = @"index.html";
  *
  *  @return <code>YES</code> if download process started; <code>NO</code> otherwise
  */
-- (BOOL)_fetchUpdate:(NSString *)callbackId {
+- (BOOL)_fetchUpdate:(NSString *)callbackId accessToken:(NSString *)token contentUrl:(NSURL *)url{
     if (!_isPluginReadyForWork) {
         return NO;
     }
     
-    NSString *taskId = [_updatesLoader addUpdateTaskToQueueWithConfigUrl:_pluginXmllConfig.configUrl];
+    NSString *taskId = [_updatesLoader addUpdateTaskToQueueWithConfigUrl:url accessToken:token];
     [self storeCallback:callbackId forFetchTask:taskId];
     
     return taskId != nil;
@@ -443,7 +443,7 @@ static NSString *const DEFAULT_STARTING_PAGE = @"index.html";
     // fetch update
     [self loadApplicationConfig];
     if (_pluginXmllConfig.isUpdatesAutoDowloadAllowed) {
-        [self _fetchUpdate:nil];
+        [self _fetchUpdate:nil accessToken:nil contentUrl:nil];
     }
 }
 
@@ -591,7 +591,7 @@ static NSString *const DEFAULT_STARTING_PAGE = @"index.html";
     _defaultCallbackID = command.callbackId;
     
     if (_pluginXmllConfig.isUpdatesAutoDowloadAllowed) {
-        [self _fetchUpdate:nil];
+        [self _fetchUpdate:nil accessToken:nil contentUrl:nil];
     }
 }
 
@@ -614,11 +614,15 @@ static NSString *const DEFAULT_STARTING_PAGE = @"index.html";
 }
 
 - (void)jsFetchUpdate:(CDVInvokedUrlCommand *)command {
+    // read token and contentUrl form js(Modify by Ani)
+    NSString *token = command.arguments[0];
+    NSURL *contentUrl = command.arguments[1];
+    
     if (!_isPluginReadyForWork) {
         return;
     }
     
-    [self _fetchUpdate:command.callbackId];
+    [self _fetchUpdate:command.callbackId accessToken:token contentUrl:contentUrl];
 }
 
 - (void)jsInstallUpdate:(CDVInvokedUrlCommand *)command {

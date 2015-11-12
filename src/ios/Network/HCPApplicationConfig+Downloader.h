@@ -37,6 +37,6 @@ typedef void (^HCPApplicationConfigDownloadComplitionBlock)(NSError *error, HCPA
  *
  *  @return loaded application config
  */
-+ (HCPApplicationConfig *)downloadSyncFromURL:(NSURL *)url error:(NSError **)error;
++ (HCPApplicationConfig *)downloadSyncFromURL:(NSURL *)url accessToken:(NSString *)token error:(NSError **)error;
 
 @end

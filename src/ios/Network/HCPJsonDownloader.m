@@ -9,12 +9,13 @@
 
 @implementation HCPJsonDownloader
 
-- (instancetype)initWithUrl:(NSURL *)url {
+- (instancetype)initWithUrl:(NSURL *)url accessToken:(NSString *)token {
     self = [super init];
     if (self) {
         _url = url;
+        _token = token;
     }
-    
+
     return self;
 }
 
@@ -31,7 +32,7 @@
             block(connectionError, nil);
             return;
         }
-        
+
         NSError *jsonError = nil;
         id jsonObject = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:&jsonError];
         block(jsonError, jsonObject);
@@ -39,14 +40,23 @@
 }
 
 - (id)downloadSync:(NSError **)error {
+    NSLog(@"Enable accessToken: %@", self.token);
     *error = nil;
-    NSData *data = [NSData dataWithContentsOfURL:self.url];
+
+    NSURLRequest *request = [NSURLRequest requestWithURL:self.url];
+    NSMutableURLRequest *mutableRequest = [request mutableCopy];
+    [mutableRequest setValue:self.token forHTTPHeaderField:@"Authorization"];
+    request = [mutableRequest copy];
+    NSHTTPURLResponse *response = nil;
+
+    // NSData *data = [NSData dataWithContentsOfURL:self.url];
+    NSData *data = [NSURLConnection sendSynchronousRequest:request returningResponse:&response error:error];
     if (data == nil) {
         NSString *message = [NSString stringWithFormat:@"Failed to download config file from: %@", self.url];
         *error = [NSError errorWithCode:0 description:message];
         return nil;
     }
-    
+
     return [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:error];
 }
 
