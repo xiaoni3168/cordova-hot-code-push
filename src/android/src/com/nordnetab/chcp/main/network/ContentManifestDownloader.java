@@ -18,7 +18,7 @@ public class ContentManifestDownloader extends JsonDownloader<ContentManifest> {
      * @param url url from where to download manifest
      */
     public ContentManifestDownloader(String url) {
-        super(url);
+        super(url, null);
     }
 
     @Override

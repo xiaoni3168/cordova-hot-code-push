@@ -270,7 +270,7 @@ public class HotCodePushPlugin extends CordovaPlugin {
 
         // fetch update when we are initialized
         if (chcpXmlConfig.isAutoDownloadIsAllowed()) {
-            fetchUpdate(null);
+            fetchUpdate(null, null);
         }
     }
 
@@ -346,9 +346,15 @@ public class HotCodePushPlugin extends CordovaPlugin {
         if (!isPluginReadyForWork) {
             return;
         }
-
-        String token = (String) arguments.get(0);
-        String contentUrl = (String) arguments.get(1);
+        
+        String token = null;
+        String contentUrl = null;
+        try {
+            token = (String) arguments.get(0);
+            contentUrl = (String) arguments.get(1);
+        } catch(JSONException e) {
+            e.printStackTrace();
+        }
 
         String taskId = UpdatesLoader.addUpdateTaskToQueue(cordova.getActivity(), token, contentUrl, fileStructure);
         if (jsCallback != null) {
@@ -489,7 +495,7 @@ public class HotCodePushPlugin extends CordovaPlugin {
         PluginResult result = PluginResultHelper.pluginResultFromEvent(event);
         sendMessageToDefaultCallback(result);
 
-        fetchUpdate(null);
+        fetchUpdate(null, null);
     }
 
     /**
