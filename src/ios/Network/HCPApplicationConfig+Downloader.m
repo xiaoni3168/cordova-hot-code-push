@@ -14,7 +14,7 @@
         return;
     }
 
-    HCPJsonDownloader *jsonDownloader = [[HCPJsonDownloader alloc] initWithUrl:url];
+    HCPJsonDownloader *jsonDownloader = [[HCPJsonDownloader alloc] initWithUrl:url accessToken:nil];
     [jsonDownloader downloadWithComplitionBlock:^(NSError *error, id json) {
         HCPApplicationConfig *config = nil;
         if (error == nil) {
@@ -26,7 +26,7 @@
 }
 
 + (HCPApplicationConfig *)downloadSyncFromURL:(NSURL *)url accessToken:(NSString *)token error:(NSError **)error {
-    HCPJsonDownloader *jsonDownloader = [[HCPJsonDownloader alloc] initWithUrl:url];
+    HCPJsonDownloader *jsonDownloader = [[HCPJsonDownloader alloc] initWithUrl:url accessToken:token];
     id json = [jsonDownloader downloadSync:error];
 
     return [HCPApplicationConfig instanceFromJsonObject:json];
