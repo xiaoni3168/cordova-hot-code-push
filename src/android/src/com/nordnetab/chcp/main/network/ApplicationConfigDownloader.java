@@ -17,8 +17,8 @@ public class ApplicationConfigDownloader extends JsonDownloader<ApplicationConfi
      *
      * @param url url from where to download application config
      */
-    public ApplicationConfigDownloader(String url) {
-        super(url);
+    public ApplicationConfigDownloader(String url, String token) {
+        super(url, token);
     }
 
     @Override

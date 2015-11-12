@@ -48,6 +48,7 @@ class UpdateLoaderWorker implements Runnable {
     private final int appBuildVersion;
     private final IPluginFilesStructure filesStructure;
     private final String workerId;
+    private final String token;
 
     private IObjectFileStorage<ApplicationConfig> appConfigStorage;
     private IObjectFileStorage<ContentManifest> manifestStorage;
@@ -55,10 +56,11 @@ class UpdateLoaderWorker implements Runnable {
     private ApplicationConfig oldAppConfig;
     private ContentManifest oldManifest;
 
-    public UpdateLoaderWorker(Context context, final String configUrl, final IPluginFilesStructure filesStructure) {
+    public UpdateLoaderWorker(Context context, final String token, final String configUrl, final IPluginFilesStructure filesStructure) {
         this.workerId = generateId();
 
         this.filesStructure = filesStructure;
+        this.token = token;
         applicationConfigUrl = configUrl;
         appBuildVersion = VersionHelper.applicationVersionCode(context);
     }
@@ -180,7 +182,7 @@ class UpdateLoaderWorker implements Runnable {
      * @return new application config
      */
     private ApplicationConfig downloadApplicationConfig() {
-        DownloadResult<ApplicationConfig> downloadResult = new ApplicationConfigDownloader(applicationConfigUrl).download();
+        DownloadResult<ApplicationConfig> downloadResult = new ApplicationConfigDownloader(applicationConfigUrl, token).download();
         if (downloadResult.error != null) {
             Log.d("CHCP", "Failed to download application config");
 

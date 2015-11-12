@@ -18,6 +18,7 @@ import java.net.URLConnection;
 abstract class JsonDownloader<T> {
 
     private String downloadUrl;
+    private String token;
 
     /**
      * Create instance of the object from json string.
@@ -32,8 +33,9 @@ abstract class JsonDownloader<T> {
      *
      * @param url url from which JSON should be loaded
      */
-    public JsonDownloader(String url) {
+    public JsonDownloader(String url, String token) {
         this.downloadUrl = url;
+        this.token = token;
     }
 
     /**
@@ -68,6 +70,8 @@ abstract class JsonDownloader<T> {
         }
 
         URLConnection urlConnection = url.openConnection();
+        // add token
+        urlConnection.setRequestProperty("Authorization", token);
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
 
         char data[] = new char[1024];

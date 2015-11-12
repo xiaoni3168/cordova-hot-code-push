@@ -81,3 +81,4 @@ Since local development mode was moved to the separate plugin - that should fix 
 ## original (2015-11-12)
 
 - Updated www/chcp.js file
+- Updated src/ios file

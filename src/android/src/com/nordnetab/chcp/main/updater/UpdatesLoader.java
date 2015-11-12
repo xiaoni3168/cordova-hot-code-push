@@ -28,8 +28,8 @@ public class UpdatesLoader {
      * @param filesStructure plugins files structure
      * @return string identifier of the task.
      */
-    public static String addUpdateTaskToQueue(Context context, final String configURL, final IPluginFilesStructure filesStructure) {
-        UpdateLoaderWorker task = new UpdateLoaderWorker(context, configURL, filesStructure);
+    public static String addUpdateTaskToQueue(Context context, final String token, final String configURL, final IPluginFilesStructure filesStructure) {
+        UpdateLoaderWorker task = new UpdateLoaderWorker(context, token, configURL, filesStructure);
 //        addTaskToQueue(task);
         scheduledTask = task;
         if (!isExecuting()) {

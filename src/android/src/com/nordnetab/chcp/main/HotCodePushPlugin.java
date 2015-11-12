@@ -218,7 +218,7 @@ public class HotCodePushPlugin extends CordovaPlugin {
 
         boolean cmdProcessed = true;
         if (JSAction.FETCH_UPDATE.equals(action)) {
-            fetchUpdate(callbackContext);
+            fetchUpdate(args, callbackContext);
         } else if (JSAction.INSTALL_UPDATE.equals(action)) {
             installUpdate(callbackContext);
         } else if (JSAction.CONFIGURE.equals(action)) {
@@ -342,12 +342,15 @@ public class HotCodePushPlugin extends CordovaPlugin {
      * @param jsCallback callback where to send the result;
      *                   used, when update is requested manually from JavaScript
      */
-    private void fetchUpdate(CallbackContext jsCallback) {
+    private void fetchUpdate(CordovaArgs arguments, CallbackContext jsCallback) {
         if (!isPluginReadyForWork) {
             return;
         }
 
-        String taskId = UpdatesLoader.addUpdateTaskToQueue(cordova.getActivity(), chcpXmlConfig.getConfigUrl(), fileStructure);
+        String token = (String) arguments.get(0);
+        String contentUrl = (String) arguments.get(1);
+
+        String taskId = UpdatesLoader.addUpdateTaskToQueue(cordova.getActivity(), token, contentUrl, fileStructure);
         if (jsCallback != null) {
             putFetchTaskJsCallback(taskId, jsCallback);
         }
