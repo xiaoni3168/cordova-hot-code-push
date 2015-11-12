@@ -38,7 +38,7 @@
 }
 
 - (NSString *)addUpdateTaskToQueueWithConfigUrl:(NSURL *)configUrl accessToken:(NSString *)token{
-    id<HCPWorker> task = [[HCPUpdateLoaderWorker alloc] initWithConfigUrl:configUrl filesStructure:_filesStructure];
+    id<HCPWorker> task = [[HCPUpdateLoaderWorker alloc] initWithConfigUrl:configUrl filesStructure:_filesStructure accessToken:token];
     if (_isExecuting) {
         _scheduledTask = task;
     } else {
