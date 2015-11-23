@@ -57,9 +57,11 @@ typedef NS_ENUM(NSUInteger, HCPUpdateTime){
 
 /**
  *  Getter for the preference, when we should install the update.
- * 
+ *
  *  @see HCPUpdateTime
  */
 @property (nonatomic, readonly) HCPUpdateTime updateTime;
+
+@property (nonatomic, strong, readonly) NSString *appVersion;
 
 @end

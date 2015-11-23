@@ -52,21 +52,39 @@ static NSString *const DEFAULT_STARTING_PAGE = @"index.html";
     NSLog(@"Disabled plugin install the wwwFolder, because this will redirect the index.html to a wrong place");
     [self subscribeToEvents];
     [self doLocalInit];
-    //
-    // // install www folder if it is needed
-    // if ([self isWWwFolderNeedsToBeInstalled]) {
-    //     [self installWwwFolder];
-    //     return;
-    // }
-    //
+
+    // install www folder if it is needed
+    if ([self isWWwFolderNeedsToBeInstalled]) {
+        [self installWwwFolder];
+        return;
+    }
+
     _isPluginReadyForWork = YES;
-    // [self resetIndexPageToExternalStorage];
-    // [self loadApplicationConfig];
-    //
-    // // install update if any exists
-    // if (_pluginXmllConfig.isUpdatesAutoInstallationAllowed) {
-    //     [self _installUpdate:nil];
-    // }
+    [self loadApplicationConfig];
+    if ([self compareVersion:_appConfig.contentConfig.appVersion appVersion:[self getAppVersion]]) {
+        [self resetIndexPageToExternalStorage];
+    }
+
+    // install update if any exists
+    if (_pluginXmllConfig.isUpdatesAutoInstallationAllowed) {
+        [self _installUpdate:nil];
+    }
+}
+
+- (NSString *)getAppVersion {
+    NSDictionary *appInfo = NSBundle.mainBundle.infoDictionary;
+    return appInfo[@"CFBundleShortVersionString"];
+}
+
+- (BOOL)compareVersion:(NSString *)configVersion appVersion:(NSString *)appVersion {
+    NSString *str1 = configVersion;
+    NSString *str2 = appVersion;
+    NSArray *array1 = [str1 componentsSeparatedByString:@"."];
+    NSArray *array2 = [str2 componentsSeparatedByString:@"."];
+    BOOL first = [array2[0] intValue] > [array1[0] intValue];
+    BOOL second = [array2[0] intValue] == [array1[0] intValue] && [array2[1] intValue] > [array1[1] intValue];
+    BOOL third = [array2[0] intValue] == [array1[0] intValue] && [array2[1] intValue] == [array1[1] intValue] && [array2[2] intValue] > [array1[2] intValue];
+    return first || second || third;
 }
 
 - (void)onAppTerminate {

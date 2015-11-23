@@ -12,6 +12,7 @@
 @property (nonatomic, readwrite) NSInteger minimumNativeVersion;
 @property (nonatomic, strong, readwrite) NSURL *contentURL;
 @property (nonatomic, readwrite) HCPUpdateTime updateTime;
+@property (nonatomic, strong, readwrite) NSString *appVersion;
 
 @end
 
@@ -21,6 +22,7 @@ static NSString *const RELEASE_VERSION_JSON_KEY = @"release";
 static NSString *const MINIMUM_NATIVE_VERSION_JSON_KEY = @"min_native_interface";
 static NSString *const UPDATE_TIME_JSON_KEY = @"update";
 static NSString *const CONTENT_URL_JSON_KEY = @"content_url";
+static NSString *const APP_VERSION_JSON_KEY = @"app_version";
 
 #pragma mark HCPUpdateTime enum strings declaration
 
@@ -54,13 +56,13 @@ static NSString *const UPDATE_TIME_ON_RESUME = @"resume";
             value = UPDATE_TIME_ON_START;
             break;
         }
-        
+
         case HCPUpdateTimeUndefined:
         default: {
             break;
         }
     }
-    
+
     return value;
 }
 
@@ -80,7 +82,7 @@ static NSString *const UPDATE_TIME_ON_RESUME = @"resume";
     } else if ([updateTime isEqualToString:UPDATE_TIME_ON_RESUME]) {
         value = HCPUpdateOnResume;
     }
-    
+
     return value;
 }
 
@@ -91,20 +93,20 @@ static NSString *const UPDATE_TIME_ON_RESUME = @"resume";
     if (_releaseVersion) {
         jsonObject[RELEASE_VERSION_JSON_KEY] = _releaseVersion;
     }
-    
+
     if (_minimumNativeVersion > 0) {
         jsonObject[MINIMUM_NATIVE_VERSION_JSON_KEY] = [NSNumber numberWithInteger:_minimumNativeVersion];
     }
-    
+
     NSString *updateTimeStr = [self updateTimeEnumToString:_updateTime];
     if (updateTimeStr) {
         jsonObject[UPDATE_TIME_JSON_KEY] = updateTimeStr;
     }
-    
+
     if (_contentURL) {
         jsonObject[CONTENT_URL_JSON_KEY] = _contentURL.absoluteString;
     }
-    
+
     return jsonObject;
 }
 
@@ -113,15 +115,16 @@ static NSString *const UPDATE_TIME_ON_RESUME = @"resume";
         return nil;
     }
     NSDictionary *jsonObject = json;
-    
+
     HCPContentConfig *contentConfig = [[HCPContentConfig alloc] init];
     contentConfig.releaseVersion = jsonObject[RELEASE_VERSION_JSON_KEY];
     contentConfig.minimumNativeVersion = [(NSNumber *)jsonObject[MINIMUM_NATIVE_VERSION_JSON_KEY] integerValue];
     contentConfig.contentURL = [NSURL URLWithString:jsonObject[CONTENT_URL_JSON_KEY]];
-    
+    contentConfig.appVersion = jsonObject[APP_VERSION_JSON_KEY];
+
     NSString *updateTime = jsonObject[UPDATE_TIME_JSON_KEY];
     contentConfig.updateTime = [contentConfig updateTimeStringToEnum:updateTime];
-    
+
     return contentConfig;
 }
 
