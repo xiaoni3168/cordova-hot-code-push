@@ -49,23 +49,24 @@ static NSString *const DEFAULT_STARTING_PAGE = @"index.html";
 #pragma mark Lifecycle
 
 -(void)pluginInitialize {
-    [self subscribeToEvents];
-    [self doLocalInit];
-
-    // install www folder if it is needed
-    if ([self isWWwFolderNeedsToBeInstalled]) {
-        [self installWwwFolder];
-        return;
-    }
-
-    _isPluginReadyForWork = YES;
-    [self resetIndexPageToExternalStorage];
-    [self loadApplicationConfig];
-
-    // install update if any exists
-    if (_pluginXmllConfig.isUpdatesAutoInstallationAllowed) {
-        [self _installUpdate:nil];
-    }
+    NSLog(@"Disabled plugin initialization, because this will redirect the index.html to a wrong place");
+    // [self subscribeToEvents];
+    // [self doLocalInit];
+    //
+    // // install www folder if it is needed
+    // if ([self isWWwFolderNeedsToBeInstalled]) {
+    //     [self installWwwFolder];
+    //     return;
+    // }
+    //
+    // _isPluginReadyForWork = YES;
+    // [self resetIndexPageToExternalStorage];
+    // [self loadApplicationConfig];
+    //
+    // // install update if any exists
+    // if (_pluginXmllConfig.isUpdatesAutoInstallationAllowed) {
+    //     [self _installUpdate:nil];
+    // }
 }
 
 - (void)onAppTerminate {
