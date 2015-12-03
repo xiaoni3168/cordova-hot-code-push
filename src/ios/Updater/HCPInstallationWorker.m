@@ -43,13 +43,14 @@
     return self;
 }
 
-- (void)run {
+- (void)runWithComplitionBlock:(void (^)(void))updateInstallationComplitionBlock {
     NSError *error = nil;
     if (![self initBeforeRun:&error] ||
         ![self isUpdateValid:&error] ||
         ![self backupFiles:&error] ||
         ![self deleteUnusedFiles:&error] ||
         ![self moveDownloadedFilesToWwwFolder:&error]) {
+            NSLog(@"%@", error.localizedDescription);
             [self rollback];
             [self cleanUp];
             [self dispatchEventWithError:error];
@@ -239,21 +240,39 @@
     *error = nil;
     NSFileManager *fileManager = [NSFileManager defaultManager];
     NSArray *updatedFiles = _manifestDiff.updateFileList;
+    NSString *errorMsg = nil;
     for (HCPManifestFile *manifestFile in updatedFiles) {
+        // determine paths to the file in installation and www folders
         NSURL *pathInInstallationFolder = [_fileStructure.installationFolder URLByAppendingPathComponent:manifestFile.name];
         NSURL *pathInWwwFolder = [_fileStructure.wwwFolder URLByAppendingPathComponent:manifestFile.name];
+        
+        // if file already exists in www folder - remove it before copying
         if ([fileManager fileExistsAtPath:pathInWwwFolder.path] && ![fileManager removeItemAtURL:pathInWwwFolder error:error]) {
+            errorMsg = [NSString stringWithFormat:@"Failed to delete old version of the file %@ : %@. Installation failed",
+                            manifestFile.name, [(*error) underlyingErrorLocalizedDesription]];
             break;
         }
         
+        // if needed - create subfolders for the new file
+        NSURL *parentDirectoryPathInWwwFolder = [pathInWwwFolder URLByDeletingLastPathComponent];
+        if (![fileManager fileExistsAtPath:parentDirectoryPathInWwwFolder.path]) {
+            if (![fileManager createDirectoryAtPath:parentDirectoryPathInWwwFolder.path withIntermediateDirectories:YES attributes:nil error:error]) {
+                errorMsg = [NSString stringWithFormat:@"Failed to create folder structure for file %@ : %@. Installation failed.",
+                                manifestFile.name, [(*error) underlyingErrorLocalizedDesription]];
+                break;
+            }
+        }
+        
+        // copy new file into www folder
         if (![fileManager moveItemAtURL:pathInInstallationFolder toURL:pathInWwwFolder error:error]) {
-            NSLog(@"%@", [(*error).userInfo[NSUnderlyingErrorKey] localizedDescription]);
+            errorMsg = [NSString stringWithFormat:@"Failed to copy file %@ into www folder: %@. Installation failed.",
+                            manifestFile.name, [(*error) underlyingErrorLocalizedDesription]];
             break;
         }
     }
     
-    if (*error) {
-        *error = [NSError errorWithCode:kHCPFailedToCopyNewContentFilesErrorCode descriptionFromError:*error];
+    if (errorMsg) {
+        *error = [NSError errorWithCode:kHCPFailedToCopyNewContentFilesErrorCode description:errorMsg];
     }
     
     return (*error == nil);
@@ -288,8 +307,14 @@
     
     NSError *error = nil;
     [_fileManager removeItemAtURL:_fileStructure.wwwFolder error:&error];
-    [_fileManager createDirectoryAtURL:_fileStructure.wwwFolder withIntermediateDirectories:YES attributes:nil error:&error];
+    if (error) {
+        NSLog(@"Failed to rollback: %@", [error underlyingErrorLocalizedDesription]);
+    }
+    
     [_fileManager copyItemAtURL:_fileStructure.backupFolder toURL:_fileStructure.wwwFolder error:&error];
+    if (error) {
+        NSLog(@"Failed to rollback: %@", [error underlyingErrorLocalizedDesription]);
+    }
 }
 
 @end

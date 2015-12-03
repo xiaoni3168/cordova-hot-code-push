@@ -6,10 +6,10 @@
 
 #import "HCPUpdateLoader.h"
 #import "HCPUpdateLoaderWorker.h"
+#import "HCPUpdateInstaller.h"
 
 @interface HCPUpdateLoader() {
-    BOOL _isExecuting;
-    id<HCPWorker> _scheduledTask;
+    __block BOOL _isExecuting;
     id<HCPFilesStructure> _filesStructure;
 }
 
@@ -38,28 +38,23 @@
 }
 
 - (NSString *)addUpdateTaskToQueueWithConfigUrl:(NSURL *)configUrl accessToken:(NSString *)token{
-    id<HCPWorker> task = [[HCPUpdateLoaderWorker alloc] initWithConfigUrl:configUrl filesStructure:_filesStructure accessToken:token];
+    // TODO: add better communication between installer and loader.
     if (_isExecuting) {
-        _scheduledTask = task;
-    } else {
-        [self executeTask:task];
+        return nil;
     }
+    id<HCPWorker> task = [[HCPUpdateLoaderWorker alloc] initWithConfigUrl:configUrl filesStructure:_filesStructure accessToken:token];
+    [self executeTask:task];
 
     return task.workerId;
 }
 
-#pragma mark Private API
-
 - (void)executeTask:(id<HCPWorker>)task {
+    _isExecuting = YES;
+    // execute in background, so the callbacks don't block main thread
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        _isExecuting = YES;
-        [task run];
-        if (_scheduledTask) {
-            [self executeTask:_scheduledTask];
-            _scheduledTask = nil;
-        } else {
+        [task runWithComplitionBlock:^{
             _isExecuting = NO;
-        }
+        }];
     });
 }
 

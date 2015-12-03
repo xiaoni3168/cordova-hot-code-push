@@ -7,8 +7,6 @@
 #import <Cordova/CDVConfigParser.h>
 
 #import "HCPPlugin.h"
-#import "HCPApplicationConfig+Downloader.h"
-#import "HCPContentManifest+Downloader.h"
 #import "HCPFileDownloader.h"
 #import "HCPFilesStructure.h"
 #import "HCPFilesStructureImpl.h"
@@ -23,6 +21,7 @@
 #import "HCPApplicationConfigStorage.h"
 #import "HCPAppUpdateRequestAlertDialog.h"
 #import "HCPAssetsFolderHelper.h"
+#import "NSError+HCPExtension.h"
 
 @interface HCPPlugin() {
     id<HCPFilesStructure> _filesStructure;
@@ -100,6 +99,7 @@ static NSString *const DEFAULT_STARTING_PAGE = @"index.html";
 #pragma mark Private API
 
 - (void)installWwwFolder {
+    _isPluginReadyForWork = NO;
     // reset www folder installed flag
     if (_pluginInternalPrefs.isWwwFolderInstalled) {
         _pluginInternalPrefs.wwwFolderInstalled = NO;
@@ -231,7 +231,7 @@ static NSString *const DEFAULT_STARTING_PAGE = @"index.html";
  *  @return <code>YES</code> if installation has started; <code>NO</code> otherwise
  */
 - (BOOL)_installUpdate:(NSString *)callbackID {
-    if (!_isPluginReadyForWork || [[HCPUpdateInstaller sharedInstance] isInstallationInProgress]) {
+    if (!_isPluginReadyForWork || _updateInstaller.isInstallationInProgress) {
         return NO;
     }
 
@@ -239,10 +239,19 @@ static NSString *const DEFAULT_STARTING_PAGE = @"index.html";
         _installationCallback = callbackID;
     }
 
-    // ignored for now
     NSError *error = nil;
+    if (![_updateInstaller launchUpdateInstallation:&error]) {
+        if (error.code == kHCPNothingToInstallErrorCode) {
+            NSNotification *notification = [HCPEvents notificationWithName:kHCPNothingToInstallEvent
+                                                         applicationConfig:nil
+                                                                    taskId:nil
+                                                                     error:error];
+            [self onNothingToInstallEvent:notification];
+        }
+        return NO;
+    }
 
-    return [_updateInstaller launchUpdateInstallation:&error];
+    return YES;
 }
 
 /**
@@ -265,7 +274,7 @@ static NSString *const DEFAULT_STARTING_PAGE = @"index.html";
         // For example, if we loaded new css file - it is not gonna update, bacuse old version is cached and the file path is the same.
         // But if we reload page - everything is fine. This is hacky, but it is the only way to reset the cache.
         // Delay is set, because if we try to reload immidiatly - nothing good will happen.
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.01 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.05 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             [self.webView reload];
         });
     }];
@@ -487,7 +496,11 @@ static NSString *const DEFAULT_STARTING_PAGE = @"index.html";
  */
 - (void)onUpdateDownloadErrorEvent:(NSNotification *)notification {
     NSError *error = notification.userInfo[kHCPEventUserInfoErrorKey];
-    NSLog(@"Error during update: %@", error.userInfo[NSLocalizedDescriptionKey]);
+    NSLog(@"Error during update: %@", [error underlyingErrorLocalizedDesription]);
+    if (error.code == kHCPLocalVersionOfApplicationConfigNotFoundErrorCode || error.code == kHCPLocalVersionOfManifestNotFoundErrorCode) {
+        NSLog(@"WWW folder is corrupted, reinstalling it from bundle.");
+        [self installWwwFolder];
+    }
 
     // send notification to the associated callback
     CDVPluginResult *pluginResult = [CDVPluginResult pluginResultForNotification:notification];
@@ -551,6 +564,7 @@ static NSString *const DEFAULT_STARTING_PAGE = @"index.html";
  *
  *  @param notification captured notification with the event details
  */
+// TODO: if event is not gonna be used in any other place - it should be removed in next version.
 - (void)onNothingToInstallEvent:(NSNotification *)notification {
     CDVPluginResult *pluginResult = [CDVPluginResult pluginResultForNotification:notification];
 

@@ -34,6 +34,8 @@ import com.nordnetab.chcp.main.utils.AssetsHelper;
 import com.nordnetab.chcp.main.utils.Paths;
 import com.nordnetab.chcp.main.utils.VersionHelper;
 
+import com.nordnetab.chcp.main.model.ChcpError;
+
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.ConfigXmlParser;
 import org.apache.cordova.CordovaArgs;
@@ -125,6 +127,7 @@ public class HotCodePushPlugin extends CordovaPlugin {
 
         // ensure that www folder installed on external storage;
         // if not - install it
+        // TODO: need to check if we can restore www folder from the backup.
         isPluginReadyForWork = isPluginReadyForWork();
         if (!isPluginReadyForWork) {
             installWwwFolder();
@@ -346,7 +349,7 @@ public class HotCodePushPlugin extends CordovaPlugin {
         if (!isPluginReadyForWork) {
             return;
         }
-        
+
         String token = null;
         String contentUrl = null;
         try {
@@ -357,6 +360,9 @@ public class HotCodePushPlugin extends CordovaPlugin {
         }
 
         String taskId = UpdatesLoader.addUpdateTaskToQueue(cordova.getActivity(), token, contentUrl, fileStructure);
+        if (taskId == null) {
+            return;
+        }
         if (jsCallback != null) {
             putFetchTaskJsCallback(taskId, jsCallback);
         }
@@ -377,7 +383,13 @@ public class HotCodePushPlugin extends CordovaPlugin {
             installJsCallback = jsCallback;
         }
 
-        UpdatesInstaller.install(fileStructure);
+        if (UpdatesInstaller.install(fileStructure)) {
+            // TODO: Temporary fix. Need some better way to restore after installation failure.
+            // ensure that we set the www folder as invalid, temporarily,
+            // so that if the app crashes or is killed we don't run from a corrupted www folder
+//            pluginInternalPrefs.setWwwFolderInstalled(false);
+//            pluginInternalPrefsStorage.storeInPreference(pluginInternalPrefs);
+        }
     }
 
     // endregion
@@ -445,6 +457,7 @@ public class HotCodePushPlugin extends CordovaPlugin {
         currentUrl = currentUrl.replace(LOCAL_ASSETS_FOLDER, "");
         String external = Paths.get(fileStructure.wwwFolder(), currentUrl);
         if (!new File(external).exists()) {
+            Log.d("CHCP", "External starting page not found. Aborting page change.");
             return;
         }
 
@@ -627,6 +640,13 @@ public class HotCodePushPlugin extends CordovaPlugin {
     public void onEvent(UpdateDownloadErrorEvent event) {
         Log.d("CHCP", "Failed to update");
 
+        // TODO: Temporary fix. Need some better way to restore after download failure.
+        final ChcpError error = event.error();
+        if (error == ChcpError.LOCAL_VERSION_OF_APPLICATION_CONFIG_NOT_FOUND || error == ChcpError.LOCAL_VERSION_OF_MANIFEST_NOT_FOUND) {
+            Log.d("CHCP", "Can't load application config from installation folder. Reinstalling external folder");
+            installWwwFolder();
+        }
+
         PluginResult jsResult = PluginResultHelper.pluginResultFromEvent(event);
 
         // notify JS
@@ -654,6 +674,11 @@ public class HotCodePushPlugin extends CordovaPlugin {
     public void onEvent(UpdateInstalledEvent event) {
         Log.d("CHCP", "Update is installed");
 
+        // reconfirm that our www folder is now valid
+        // TODO: Temporary fix. Need some better way to restore after installation failure.
+//        pluginInternalPrefs.setWwwFolderInstalled(true);
+//        pluginInternalPrefsStorage.storeInPreference(pluginInternalPrefs);
+
         final PluginResult jsResult = PluginResultHelper.pluginResultFromEvent(event);
 
         if (installJsCallback != null) {
@@ -675,8 +700,12 @@ public class HotCodePushPlugin extends CordovaPlugin {
             public void run() {
                 webView.clearHistory();
                 webView.clearCache();
-                final String startingPage = getStartingPage() + "?" + System.currentTimeMillis();
-                final String externalStartingPage = FILE_PREFIX + Paths.get(fileStructure.wwwFolder(), startingPage);
+                final String external = Paths.get(fileStructure.wwwFolder(), getStartingPage());
+                if (!new File(external).exists()) {
+                    Log.d("CHCP", "External starting page not found. Aborting page change.");
+                    return;
+                }
+                final String externalStartingPage = FILE_PREFIX + external + "?" + System.currentTimeMillis();
                 webView.loadUrlIntoView(externalStartingPage, false);
             }
         });

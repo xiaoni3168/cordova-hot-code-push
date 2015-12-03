@@ -2,7 +2,7 @@
 
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
            id="cordova-hot-code-push-plugin"
-      version="1.1.0">
+      version="1.1.2">
 
     <name>Hot Code Push Plugin</name>
     <description>Cordova plugin to perform code updates on the fly</description>
@@ -120,24 +120,9 @@
         target-dir="Model/" />
 
       <!-- sources for Network folder -->
-      <source-file src="src/ios/Network/HCPApplicationConfig+Downloader.m"
-        target-dir="Network/" />
-      <header-file src="src/ios/Network/HCPApplicationConfig+Downloader.h"
-        target-dir="Network/" />
-
-      <source-file src="src/ios/Network/HCPContentManifest+Downloader.m"
-        target-dir="Network/" />
-      <header-file src="src/ios/Network/HCPContentManifest+Downloader.h"
-        target-dir="Network/" />
-
       <source-file src="src/ios/Network/HCPFileDownloader.m"
         target-dir="Network/" />
       <header-file src="src/ios/Network/HCPFileDownloader.h"
-        target-dir="Network/" />
-
-      <source-file src="src/ios/Network/HCPJsonDownloader.m"
-        target-dir="Network/" />
-      <header-file src="src/ios/Network/HCPJsonDownloader.h"
         target-dir="Network/" />
 
       <!-- sources for Storage folder -->

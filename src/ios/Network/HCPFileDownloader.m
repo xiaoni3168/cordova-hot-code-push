@@ -13,83 +13,57 @@
 
 #pragma mark Public API
 
-- (void)downloadFileFromUrl:(NSURL *)url saveToFile:(NSURL *)filePath checksum:(NSString *)checksum complitionBlock:(HCPFileDownloadComplitionBlock)block {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSError *error = nil;
-        [self executeFileDownloadFromURL:url saveToFile:filePath checksum:checksum error:&error];
-        block(error);
-    });
-}
-
-- (void)downloadFiles:(NSArray *)filesList fromURL:(NSURL *)contentURL toFolder:(NSURL *)folderURL complitionBlock:(HCPFileDownloadComplitionBlock)block {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSError *error = nil;
-        [self executeDownloadOfFiles:filesList fromURL:contentURL toFolder:folderURL error:&error];
-        block(error);
-    });
-}
-
-- (BOOL)downloadFilesSync:(NSArray *)filesList fromURL:(NSURL *)contentURL toFolder:(NSURL *)folderURL error:(NSError **)error {
-    [self executeDownloadOfFiles:filesList fromURL:contentURL toFolder:folderURL error:error];
+- (void) downloadDataFromUrl:(NSURL*) url completionBlock:(HCPDataDownloadCompletionBlock) block {
+    NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration defaultSessionConfiguration];
+    configuration.requestCachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:configuration];
     
-    return (*error == nil);
-}
-
-- (BOOL)downloadFileSyncFromUrl:(NSURL *)url saveToFile:(NSURL *)filePath checksum:(NSString *)checksum error:(NSError **)error {
-    [self executeFileDownloadFromURL:url saveToFile:filePath checksum:checksum error:error];
+    NSURLSessionDataTask* dowloadTask = [session dataTaskWithURL:url completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+        block(data, error);
+    }];
     
-    return (*error == nil);
+    [dowloadTask resume];
 }
 
-#pragma mark Private API
-
-/**
- *  Perform download of the list of files
- *
- *  @param filesList  list of files to download
- *  @param contentURL base url for all the loaded files
- *  @param folderURL  where to put loaded files on the file system
- *  @param error      error information if any occure; <code>nil</code> if all files are loaded
- */
-- (void)executeDownloadOfFiles:(NSArray *)filesList fromURL:(NSURL *)contentURL toFolder:(NSURL *)folderURL error:(NSError **)error {
+- (void) downloadFiles:(NSArray *)filesList fromURL:(NSURL *)contentURL toFolder:(NSURL *)folderURL completionBlock:(HCPFileDownloadCompletionBlock)block {
+    NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration defaultSessionConfiguration];
+    configuration.requestCachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:configuration];
+    
+    __block NSMutableSet* startedTasks = [NSMutableSet set];
+    __block BOOL canceled = NO;
     for (HCPManifestFile *file in filesList) {
-        NSURL *filePathOnFileSystem = [folderURL URLByAppendingPathComponent:file.name isDirectory:NO];
-        NSURL *fileUrlOnServer = [contentURL URLByAppendingPathComponent:file.name isDirectory:NO];
-        BOOL isDownloaded = [self executeFileDownloadFromURL:fileUrlOnServer saveToFile:filePathOnFileSystem checksum:file.md5Hash error:error];
-        if (!isDownloaded) {
-            break;
-        }
+        NSURL *url = [contentURL URLByAppendingPathComponent:file.name];
+        __block NSURLSessionDataTask *downloadTask = [session dataTaskWithURL:url completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+            __weak __typeof(self) weakSelf = self;
+            if (!error) {
+                if ([weakSelf saveData:data forFile:file toFolder:folderURL error:&error]) {
+                    NSLog(@"Loaded file %@ from %@", file.name, url.absoluteString);
+                    [startedTasks removeObject:downloadTask];
+                }
+            }
+            
+            if (error) {
+                [session invalidateAndCancel];
+                [startedTasks removeAllObjects];
+            }
+            
+            // operations finishes
+            if (!canceled && (startedTasks.count == 0 || error)) {
+                if (error) {
+                    canceled = YES; // do not dispatch any other error
+                }
+                // we should already be in the background thread
+                block(error);
+            }
+        }];
         
-        NSLog(@"Loaded file %@", file.name);
+        [startedTasks addObject:downloadTask];
+        [downloadTask resume];
     }
 }
 
-/**
- *  Perform download of the file from the provided url
- *
- *  @param url      url from which to downlaod the file
- *  @param fileURL  where to save file on the external storage
- *  @param checksum file checksum to validate it after the download
- *  @param error    error information if any occure; <code>nil</code> on download success
- *
- *  @return <code>YES</code> if file is downloaded; <code>NO</code> if we failed to download
- */
-- (BOOL)executeFileDownloadFromURL:(NSURL *)url saveToFile:(NSURL *)fileURL checksum:(NSString *)checksum error:(NSError **)error {
-    *error = nil;
-    NSData *downloadedContent = [NSData dataWithContentsOfURL:url];
-    if (downloadedContent == nil) {
-        NSString *message = [NSString stringWithFormat:@"Failed to load file: %@", url];
-        *error = [NSError errorWithCode:0 description:message];
-        return NO;
-    }
-    
-    if (![self isDataCorrupted:downloadedContent checksum:checksum error:error]) {
-        [self prepareFileForSaving:fileURL];
-        [downloadedContent writeToURL:fileURL options:kNilOptions error:error];
-    }
-    
-    return (*error == nil);
-}
+#pragma Private API
 
 /**
  *  Check if data was corrupted during the download.
@@ -100,24 +74,36 @@
  *
  *  @return <code>YES</code> if data is corrupted; <code>NO</code> if data is valid
  */
-- (BOOL)isDataCorrupted:(NSData *)data checksum:(NSString *)checksum error:(NSError **)error {
+- (BOOL)isDataCorrupted:(NSData *)data forFile:(HCPManifestFile *)file error:(NSError **)error {
+    *error = nil;
     NSString *dataHash = [data md5];
-    if ([dataHash isEqualToString:checksum]) {
+    NSString *fileChecksum = file.md5Hash;
+    if ([dataHash isEqualToString:fileChecksum]) {
         return NO;
     }
     
-    NSString *errorMsg = [NSString stringWithFormat:@"Hash %@ of the loaded file doesn't match the checksum %@", dataHash, checksum];
-    *error = [NSError errorWithCode:0 description:errorMsg];
+    NSString *errorMsg = [NSString stringWithFormat:@"Hash %@ of the file %@ doesn't match the checksum %@", dataHash, file.name, fileChecksum];
+    *error = [NSError errorWithCode:kHCPFailedToDownloadUpdateFilesErrorCode description:errorMsg];
     
     return YES;
 }
 
 /**
- *  Prepare file system for file download
+ *  Save loaded file data to the file system.
  *
- *  @param filePath url to the file where it should be placed in the file system after download
+ *  @param data      loaded data
+ *  @param file      file, whose data we loaded
+ *  @param folderURL folder, where to save loaded data
+ *  @param error     error entry; <code>nil</code> - if saved successfully;
+ *
+ *  @return <code>YES</code> - if data is saved; <code>NO</code> - otherwise
  */
-- (void)prepareFileForSaving:(NSURL *)filePath {
+- (BOOL)saveData:(NSData *)data forFile:(HCPManifestFile *)file toFolder:(NSURL *)folderURL error:(NSError **)error {
+    if ([self isDataCorrupted:data forFile:file error:error]) {
+        return NO;
+    }
+    
+    NSURL *filePath = [folderURL URLByAppendingPathComponent:file.name];
     NSFileManager *fileManager = [NSFileManager defaultManager];
     
     // remove old version of the file
@@ -127,8 +113,12 @@
     
     // create storage directories
     [fileManager createDirectoryAtPath:[filePath.path stringByDeletingLastPathComponent]
-            withIntermediateDirectories:YES
-                             attributes:nil
-                                  error:nil];
+           withIntermediateDirectories:YES
+                            attributes:nil
+                                 error:nil];
+    
+    // write data
+    return [data writeToURL:filePath options:kNilOptions error:error];
 }
+
 @end
